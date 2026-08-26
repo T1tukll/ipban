@@ -1,0 +1,21 @@
+action
+{
+  "ban": {
+    "1.2.3.4": {
+      "remark": "Cloudflare's web",
+      "reason": "bot"
+    },
+    "8.8.8.8": {
+      "remark": "",
+      "reason": ""
+    }
+  },
+  "uban": {
+    "1.3.3.7": {
+      "reason": "Misstake"
+    },
+    "1.0.0.1": {
+      "reason": "DNS"
+    }
+  }
+}
