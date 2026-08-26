@@ -29,7 +29,7 @@ def destroy_nft_table():
     nft = Nftables()
     rc, output, error = nft.cmd("destroy table inet ipban")
 
-#delete old table, create new, and fill with ip's
+#delete old table, create new, and fill it with ip's
 def flush_nft(ips : Iterable[ipaddress.IPv4Address]):
     nft = Nftables()
     ips_str = ""
@@ -92,6 +92,7 @@ def action(sql_conn: sqlite3.Connection, conn: socket.socket, data: str):
         print("Not implemented yet")
         break
     add_to_end_nft(ips_to_ban)
+    conn.sendall(b"ok")
 
 def list_ips(sql_conn: sqlite3.Connection, conn: socket.socket, data: str):
     data = data[data.find('\n')+1:] #strip req_type
