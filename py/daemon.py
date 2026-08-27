@@ -43,7 +43,7 @@ def flush_nft(ips : Iterable[ipaddress.IPv4Address]):
     elements = {{ {ips_str} }}; }}""")
 
 #add list of ips to set in nft
-def add_to_end_nft(ips: Iterable[ipaddress.IPv4Address]):
+def add_to_set_nft(ips: Iterable[ipaddress.IPv4Address]):
     nft = Nftables()
     ips_str = ""
     for ip in ips:
@@ -53,13 +53,25 @@ def add_to_end_nft(ips: Iterable[ipaddress.IPv4Address]):
         return
     rc, output, error = nft.cmd(f"add element inet ipban banned_ipv4 {{ {ips_str} }}")
 
+def delete_from_set_nft(ips: Iterable[ipaddress.IPv4Address]):
+    nft = Nftables()
+    ips_str = ""
+    for ip in ips:
+        ips_str += f"{str(ip)}, "
+    
+    ips_str = ips_str[:-2]
+    if ips_str == "":
+        return
+    rc, output, error = nft.cmd(f"delete element inet ipban banned_ipv4 {{ {ips_str} }}")
+
+
 def init_nft(sql_conn: sqlite3.Connection):
     rows = sql_conn.execute("""SELECT ip FROM banned
     """).fetchall()
     flush_nft([row[0] for row in rows])
 
 #add selected ip to db table banned 
-def make_ban(sql_conn: sqlite3.Connection, ip: ipaddress.IPv4Address, remark = "", reason = "") -> bool:
+def sql_ban(sql_conn: sqlite3.Connection, ip: ipaddress.IPv4Address, remark = "", reason = "") -> bool:
     #checking if ip is already banned
     row = sql_conn.execute(f"""SELECT id FROM {ban_t_name}
     WHERE ip = ? LIMIT 1""", (str(ip),)).fetchone()
@@ -74,6 +86,34 @@ def make_ban(sql_conn: sqlite3.Connection, ip: ipaddress.IPv4Address, remark = "
     sql_conn.commit()
     return True
 
+def sql_uban(sql_conn: sqlite3.Connection, ip: ipaddress.IPv4Address, uban_reason = "") -> bool:
+    ban_t_name="banned"
+    uban_t_name="banned_archive"
+    row = sql_conn.execute(f"""SELECT id FROM {ban_t_name}
+    WHERE ip = ? LIMIT 1""", (str(ip),)).fetchone()
+    print(row)
+    
+    if row is None:
+        return False    #not banned
+    
+    uban_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    query = f"""INSERT INTO {uban_t_name} 
+    (ban_time, uban_time, ip, ban_remark, ban_reason, uban_reason) 
+    SELECT ban_time, ?, ip, remark, reason, ? 
+    FROM {ban_t_name}
+    WHERE ip = ?
+    """
+
+    sql_conn.execute(query, (uban_time, uban_reason, str(ip)))
+
+    sql_conn.execute(f"""DELETE FROM {ban_t_name} WHERE ip= ?""", (str(ip),))
+    
+    sql_conn.commit()
+    
+    return True
+
+
 #what to do in case of req_type=="action"
 #TODO: protect from situation: ban "1.1.1.1", uban "1.1.1.1"
 def action(sql_conn: sqlite3.Connection, conn: socket.socket, data: str):
@@ -81,17 +121,25 @@ def action(sql_conn: sqlite3.Connection, conn: socket.socket, data: str):
     data_json = json.loads(data)
     
     ips_to_ban = list()
-    for ip,creds in data_json["ban"].items():
-        ip_addr = ipaddress.IPv4Address(ip)
-        remark = creds["remark"]
-        reason = creds["reason"]
-        make_ban(sql_conn, ip_addr, remark, reason)
-        ips_to_ban.append(ip)
+    if "ban" in data_json:
+        for ip,creds in data_json["ban"].items():
+            ip_addr = ipaddress.IPv4Address(ip)
+            remark = creds["remark"]
+            reason = creds["reason"]
+            sql_ban(sql_conn, ip_addr, remark, reason)
+            ips_to_ban.append(ip)
+        add_to_set_nft(ips_to_ban)
+    
+    ips_to_uban = list()
+    if "uban" in data_json:
+        for ip, creds in data_json["uban"].items():
+            ip_addr = ipaddress.IPv4Address(ip)
+            reason = creds["reason"]
+            sql_uban(sql_conn,ip_addr,reason)
+            ips_to_uban.append(ip)
+        print(ips_to_uban)
+        delete_from_set_nft(ips_to_uban)
 
-    for ip, creds in data_json["uban"].items():
-        print("Not implemented yet")
-        break
-    add_to_end_nft(ips_to_ban)
     conn.sendall(b"ok")
 
 def list_ips(sql_conn: sqlite3.Connection, conn: socket.socket, data: str):
@@ -155,13 +203,21 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, stop_handler)
     sql_conn = sqlite3.connect("/var/lib/ipban/db.file")
     ban_t_name="banned"
-    sql_conn.execute(f"""CREATE TABLE IF NOT EXISTS {ban_t_name} 
+    uban_t_name="banned_archive"
+    sql_conn.execute(f"""CREATE TABLE IF NOT EXISTS {ban_t_name}
                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ban_time TEXT NOT NULL,
                 ip TEXT NOT NULL,
                 remark TEXT,
                 reason TEXT)""")
-
+    sql_conn.execute(f"""CREATE TABLE IF NOT EXISTS {uban_t_name}
+                (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ban_time TEXT NOT NULL,
+                uban_time TEXT NOT NULL,
+                ip TEXT NOT NULL,
+                ban_remark TEXT,
+                ban_reason TEXT,
+                uban_reason TEXT)""")
     create_nft_table()
     init_nft(sql_conn)
     #flush_nft([ ipaddress.IPv4Address("123.134.124.1"), ipaddress.IPv4Address("8.8.8.8")])
