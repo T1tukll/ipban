@@ -143,8 +143,20 @@ def action(sql_conn: sqlite3.Connection, conn: socket.socket, data: str):
     conn.sendall(b"ok")
 
 def list_ips(sql_conn: sqlite3.Connection, conn: socket.socket, data: str):
+    ban_t_name="banned"
     data = data[data.find('\n')+1:] #strip req_type
-
+    rows = sql_conn.execute(f"SELECT ban_time,ip,remark,reason FROM {ban_t_name}").fetchall()
+    response_json = {}
+    print(rows)
+    for row in rows:
+        response_json[row[1]] = {
+            "ban_time": row[0],
+            "ban_remark": row[2],
+            "ban_reason": row[3]
+        }
+    response = json.dumps(response_json)
+    conn.sendall(response.encode())
+    conn.shutdown(socket.SHUT_WR)
 
 def recv_all(conn: socket.socket) -> bytes:
     chunks = []
