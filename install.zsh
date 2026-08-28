@@ -64,6 +64,13 @@ ask() {
   
 }
 
+rm_if_present() {
+  local object="$1"
+  if [[ -a "$object" ]]; then
+    rm -fr "$object"
+  fi
+}
+
 # synapsys:
 # abort_install "reason"
 abort_install() {
@@ -71,14 +78,20 @@ abort_install() {
   exit 1
 }
 
+#--------[main]---------
+
+if [[ ${EUID} != 0 ]]; then
+  abort_install "Root privilegies are required to run installation"
+fi
+
 if [[ ! $(id -g ipban) ]]; then
-  sudo groupadd --system ipban
+  groupadd --system ipban
 else
   abort_install "Group %Bipban%b already exists"
 fi
 
 if [[ ! $(id -u ipban) ]]; then
-  sudo useradd \
+  useradd \
     --system \
     --gid ipban \
     --no-create-home \
@@ -90,21 +103,46 @@ else
   abort_install "User %Bipban%b already exists"
 fi
 
-db_dir="/var/lib/ipban"
-if [[ ! -d $db_dir ]]; then
-  sudo mkdir $db_dir
-  sudo chmod 775 $db_dir
-  sudo chown ipban:ipban $db_dir
+daemon_dir="/opt/ipban"
+if [[ ! -d $daemon_dir ]]; then
+  #creating directory for daemon
+  mkdir $daemon_dir
+  chmod u=rx,g=rx,o=- $daemon_dir
+  chown ipban:ipban $daemon_dir
 else
-  if ask "n" "directory $db_dir already exists. rewrite?"; then
-    sudo rm -rf $db_dir
-
-    sudo mkdir $db_dir
-    sudo chmod 775 $db_dir
-    sudo chown ipban:ipban $db_dir
+  if ask "n" "directory $daemon_dir already exists. overwrite?"; then
+    rm -rf $daemon_dir
+    mkdir $daemon_dir
+    chmod u=rx,g=rx,o=- $daemon_dir
+    chown ipban:ipban $daemon_dir
   else
-    abort_install "User decided not to overwrite \'$db_dir\'. Which is requred to store banned ip\'s"
+    abort_install  "User decided not to overwrite \'$daemon_dir\'. Which is needed for daemon"
+  fi 
+  
+  #copying daemon to it's dir
+  cp ./py/daemon.py $daemon_dir/daemon.py
+  chmod u=rx,g=rx,o=- $daemon_dir/daemon.py
+  chown ipban:ipban $daemon_dir/daemon.py
+fi
+
+bin_client="/bin/ipban"
+sbin_client="/sbin/ipban"
+if [[ ! -f $bin_client ]]; then
+  if ! ask "n" "$bin_client already exists. overwrite?"; then
+    abort_install "Couldn't install ipban client."
+  fi
+fi
+if [[ ! -f $sbin_client ]]; then
+  if ! ask "n" "$sbin_client already exists. overwrite?"; then
+    abort_install "Couldn't install ipban client."
   fi
 fi
 
-#TODO: create systemd service
+#client binary
+cp ./py/client.py "$bin_client"
+cp ./py/client.py "$sbin_client"
+
+#systemd service
+systemd_service="./systemd/ipban.service"
+cp "$systemd_service" /etc/systemd/system
+systemctl enable --now ipban.service

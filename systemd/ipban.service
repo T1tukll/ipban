@@ -1,0 +1,29 @@
+[Unit]
+Description=Service for banning ip adresses
+After=nftables.target
+#Before=
+
+[Service]
+ExecStart=/bin/python /opt/ipban/daemon.py
+
+User=ipban
+Group=ipban
+
+StateDirectory=ipban
+StateDirectoryMode=775
+
+RuntimeDirectory=ipban
+RuntimeDirectoryMode=775
+
+StandardOutput=journal
+StandardError=journal
+
+Type=simple
+Restart=on-failure
+
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

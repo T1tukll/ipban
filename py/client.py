@@ -17,12 +17,10 @@ def conctruct_json(ban_list: Iterable[ipaddress.IPv4Address] | Iterable[ipaddres
             "remark": "",
             "reason": ""
         }
-    print(json_map)
     for ip in uban_list:
         json_map["uban"][str(ip)] = {
             "reason": ""
         }
-    print(json_map)
 
     return json.dumps(json_map)
 
@@ -70,7 +68,7 @@ def req_action(sock_path:socket.socket, args):
     client.sendall(request.encode())
     client.shutdown(socket.SHUT_WR)
     print(client.recv(4096).decode())
-    
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -85,7 +83,7 @@ if __name__ == "__main__":
     socket_path = "/run/ipban/ipban.sock"
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     client.connect(socket_path)
-    if args.ban != None and args.uban != None:
+    if args.ban != None or args.uban != None:
         req_action(client,args)
     if args.list:
         req_list(client)

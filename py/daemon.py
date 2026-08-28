@@ -235,6 +235,6 @@ if __name__ == "__main__":
     #flush_nft([ ipaddress.IPv4Address("123.134.124.1"), ipaddress.IPv4Address("8.8.8.8")])
     
     sock_path = Path("/run/ipban/ipban.sock")
-    sock_path.parent.mkdir(parents=True,exist_ok=True)
+    #sock_path.parent.mkdir(parents=True,exist_ok=True)
     run_server(sock_path, sql_conn)
     destroy_nft_table()
