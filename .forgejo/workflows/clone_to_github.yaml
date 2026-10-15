@@ -21,5 +21,5 @@ jobs:
           GH_TOKEN: ${{ secrets.MIRROR_TOKEN }}
         run: |
           git remote add gh \
-          "https://x-access-token:${GH_TOKEN}@gihtub.com/T1tukll/ipban.git"
+          "https://x-access-token:${GH_TOKEN}@github.com/T1tukll/ipban.git"
           git push gh main
