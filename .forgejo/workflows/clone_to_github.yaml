@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions@checkout@v6
+        uses: https://data.forgejo.org/actions/checkout@v6
         with:
           fetch-depth: 0
 
