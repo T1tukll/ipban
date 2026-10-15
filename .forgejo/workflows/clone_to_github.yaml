@@ -1,0 +1,25 @@
+name: Auto clone to GitHub
+
+on:
+  push:
+    branches:
+      - main
+      - penguinee
+
+jobs:
+  mirror:
+    runs-on: ci
+
+    steps:
+      - name: Checkout repo
+        uses: actions@checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Push to GitHub
+        env:
+          GH_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+        run: |
+          git remote add gh \
+          "https://x-access-token:${GH_TOKEN}@gihtub.com/T1tukll/ipban.git"
+          git push main

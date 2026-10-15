@@ -127,12 +127,12 @@ fi
 
 bin_client="/bin/ipban"
 sbin_client="/sbin/ipban"
-if [[ ! -f $bin_client ]]; then
+if [[ -f $bin_client ]]; then
   if ! ask "n" "$bin_client already exists. overwrite?"; then
     abort_install "Couldn't install ipban client."
   fi
 fi
-if [[ ! -f $sbin_client ]]; then
+if [[ -f $sbin_client ]]; then
   if ! ask "n" "$sbin_client already exists. overwrite?"; then
     abort_install "Couldn't install ipban client."
   fi
