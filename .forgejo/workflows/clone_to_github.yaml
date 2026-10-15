@@ -22,4 +22,4 @@ jobs:
         run: |
           git remote add gh \
           "https://x-access-token:${GH_TOKEN}@gihtub.com/T1tukll/ipban.git"
-          git push main
+          git push gh main
